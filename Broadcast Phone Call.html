@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Broadcast Phone Call</title>
+<style>
+:root{
+  --bg:#f3f0e8; --panel:#fffdf7; --ink:#1d2430; --mute:#6a7280; --line:#d9d4c6;
+  --yes:#1f8a4c; --no:#c2412d; --accent:#2b4fd8; --pulse:#f2b705;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){--bg:#14171d;--panel:#1d222b;--ink:#eceff4;--mute:#97a0ae;--line:#323947;--yes:#4cc98a;--no:#ff7a66;--accent:#7e9bff}
+}
+:root[data-theme="dark"]{--bg:#14171d;--panel:#1d222b;--ink:#eceff4;--mute:#97a0ae;--line:#323947;--yes:#4cc98a;--no:#ff7a66;--accent:#7e9bff}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Trebuchet MS","Segoe UI",system-ui,sans-serif}
+main{max-width:900px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:1.7rem;margin:.2em 0 .1em;letter-spacing:-.01em}
+h2{font-size:1.05rem;margin:0 0 8px}
+p.lead{color:var(--mute);margin:0 0 18px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:18px}
+.stage{display:flex;align-items:flex-end;gap:8px;padding-top:70px}
+.who{width:110px;text-align:center;position:relative;flex:none}
+.face{font-size:58px;line-height:1.1;display:inline-block;transition:filter .5s}
+.name{font-weight:700}
+.sub{font-size:.8rem;color:var(--mute)}
+.bubble{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);margin-bottom:-6px;min-width:70px;max-width:190px;
+  background:var(--panel);border:2px solid var(--ink);border-radius:14px;padding:5px 10px;font-size:.9rem;font-weight:600;opacity:0;transition:opacity .15s;pointer-events:none}
+.bubble.show{opacity:1}
+.bubble.dim{color:var(--mute);border-style:dashed}
+.line{flex:1;position:relative;height:3px;margin-bottom:46px;border-top:3px dashed var(--mute);min-width:60px}
+.pulse{position:absolute;top:-20px;left:0;opacity:0;background:var(--pulse);color:#2a2000;font-weight:700;font-size:.8rem;
+  padding:2px 10px;border-radius:14px;white-space:nowrap;max-width:150px;overflow:hidden;text-overflow:ellipsis}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media (max-width:680px){.cols{grid-template-columns:1fr}}
+.script{margin-bottom:14px}
+.blk{display:flex;align-items:center;flex-wrap:wrap;gap:6px;font-weight:700;font-size:.9rem;padding:7px 10px;margin:0 0 2px;border-radius:6px;transition:opacity .2s}
+.ev{background:#f2b705;color:#2a2000}
+.lk{background:#8a5cf5;color:#fff}
+.mo{background:#4c97ff;color:#fff}
+.hat{border-radius:18px 18px 6px 6px;padding-top:11px}
+.blk input,.blk select{border:0;border-radius:14px;padding:3px 10px;font:inherit;font-weight:600;background:#fff;color:#222;width:130px;max-width:100%}
+.blk select{width:auto}
+.x{margin-left:auto;border:0;border-radius:50%;width:26px;height:26px;cursor:pointer;background:rgba(0,0,0,.28);color:#fff;font-size:.85rem}
+.blk.off{opacity:.5;outline:2px dashed var(--mute);outline-offset:2px;margin-left:26px;margin-top:10px}
+.dtag{display:none;font-size:.7rem;font-weight:600}
+.blk.off .dtag{display:inline}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+button.btn{border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:10px;padding:8px 14px;font:inherit;font-weight:700;cursor:pointer}
+button.go{background:var(--yes);color:#fff;border-color:var(--yes)}
+#log{list-style:none;margin:0;padding:0;display:grid;gap:6px;min-height:40px}
+#log li{background:var(--bg);border-left:5px solid var(--mute);border-radius:6px;padding:6px 10px;font-size:.92rem}
+#log li.ok{border-color:var(--yes)} #log li.warn{border-color:var(--no)} #log li.send{border-color:#f2b705}
+.tip{color:var(--mute);font-size:.9rem;margin:8px 0 0}
+</style>
+</head>
+<body>
+<main>
+<h1>Broadcast = a phone call</h1>
+<p class="lead">Alice sends a message. Bob only reacts if he is listening for the same message name.</p>
+
+<div class="card">
+  <div class="stage">
+    <div class="who"><div class="bubble" id="bubA"></div><div class="face" id="faceA">👩</div><div class="name">Alice</div><div class="sub">sprite 1</div></div>
+    <div class="line"><div class="pulse" id="pulse"></div></div>
+    <div class="who"><div class="bubble" id="bubB"></div><div class="face" id="faceB">👨</div><div class="name">Bob</div><div class="sub">sprite 2</div></div>
+  </div>
+</div>
+
+<div class="bar">
+  <button class="btn go" id="go">🏁 Start the call</button>
+  <button class="btn" id="reset">Reset</button>
+  <button class="btn" id="scMatch">Scenario: names match</button>
+  <button class="btn" id="scWrong">Scenario: wrong name</button>
+  <button class="btn" id="scNone">Scenario: no broadcast</button>
+</div>
+
+<div class="cols">
+  <div class="card">
+    <h2>Alice's scripts</h2>
+    <div class="script">
+      <div class="blk ev hat">when 🏁 clicked</div>
+      <div class="blk lk">say <input id="aSay" value="Hello Bob!"></div>
+      <div class="blk ev" id="aBc">broadcast <input id="aMsg" value="hello"> <span class="dtag">disconnected</span><button class="x" id="aTog" aria-label="Remove or reconnect the broadcast block" title="Remove / reconnect">✕</button></div>
+    </div>
+    <div class="script">
+      <div class="blk ev hat">when I receive <input id="aRecv" value="reply"></div>
+      <div class="blk lk">say <input id="aSay2" value="Great to hear from you!"></div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Bob's scripts</h2>
+    <div class="script">
+      <div class="blk ev hat">when I receive <input id="bRecv" value="hello"></div>
+      <div class="blk lk" id="bActBlk">
+        <select id="bAct" aria-label="Bob's action">
+          <option value="say">say</option>
+          <option value="spin">turn ↻ 360 degrees</option>
+          <option value="jump">jump (change y)</option>
+          <option value="color">change color effect</option>
+        </select>
+        <input id="bText" value="Hi Alice!">
+      </div>
+      <div class="blk ev" id="bBc">broadcast <input id="bMsg" value="reply"> <span class="dtag">disconnected</span><button class="x" id="bTog" aria-label="Remove or reconnect the broadcast block" title="Remove / reconnect">✕</button></div>
+    </div>
+    <p class="tip">Edit any yellow or purple text, change Bob's action, or press ✕ to pull a block out of the script.</p>
+  </div>
+</div>
+
+<div class="card">
+  <h2>What happened on the line</h2>
+  <ul id="log"><li>Press “Start the call”.</li></ul>
+  <p class="tip">In Scratch, a broadcast goes to every sprite. Each sprite decides by itself whether to react.</p>
+</div>
+</main>
+
+<script>
+const $=id=>document.getElementById(id);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const val=id=>$(id).value.trim();
+const same=(a,b)=>a.toLowerCase()===b.toLowerCase();
+const on={a:true,b:true};
+let busy=false,hue=0;
+
+function setTog(k,state){
+  on[k]=state;
+  $(k+'Bc').classList.toggle('off',!state);
+  $(k+'Tog').textContent=state?'✕':'↺';
+}
+$('aTog').onclick=()=>setTog('a',!on.a);
+$('bTog').onclick=()=>setTog('b',!on.b);
+$('bAct').onchange=()=>{$('bText').style.display=$('bAct').value==='say'?'':'none'};
+
+function log(type,text){
+  const li=document.createElement('li'); li.className=type; li.textContent=text; $('log').appendChild(li);
+}
+async function say(w,text,ms=1500,dim=false){
+  const b=$('bub'+w); b.textContent=text; b.classList.toggle('dim',dim); b.classList.add('show');
+  await sleep(ms); b.classList.remove('show'); await sleep(200);
+}
+async function pulse(dir,text){
+  const p=$('pulse'); p.textContent='✉ '+text;
+  const f=dir==='ab'
+    ?[{left:'0%',transform:'translateX(0)',opacity:1},{left:'100%',transform:'translateX(-100%)',opacity:1}]
+    :[{left:'100%',transform:'translateX(-100%)',opacity:1},{left:'0%',transform:'translateX(0)',opacity:1}];
+  const a=p.animate(f,{duration:1000,easing:'ease-in-out',fill:'forwards'});
+  await a.finished; a.cancel();
+}
+async function act(){
+  const t=$('bAct').value, f=$('faceB');
+  if(t==='say') return say('B',val('bText'));
+  if(t==='spin'){log('ok','Bob runs: turn 360 degrees'); return f.animate([{transform:'rotate(0)'},{transform:'rotate(360deg)'}],{duration:900}).finished}
+  if(t==='jump'){log('ok','Bob runs: change y by 40'); return f.animate([{transform:'translateY(0)'},{transform:'translateY(-40px)'},{transform:'translateY(0)'}],{duration:700}).finished}
+  hue+=120; f.style.filter=`hue-rotate(${hue}deg)`; log('ok','Bob runs: change color effect'); return sleep(700);
+}
+async function run(){
+  if(busy) return; busy=true;
+  $('log').innerHTML='';
+  await say('A',val('aSay'));
+  if(!on.a){
+    log('warn','Alice has no broadcast block connected, so nothing is sent. Bob hears nothing.');
+    await say('B','…',1000,true); busy=false; return;
+  }
+  const m=val('aMsg');
+  log('send',`Alice broadcasts “${m}”.`);
+  await pulse('ab',m);
+  if(!same(m,val('bRecv'))){
+    log('warn',`Nobody is listening for “${m}”. Bob is waiting for “${val('bRecv')}”, so he does nothing.`);
+    await say('B','…',1000,true); busy=false; return;
+  }
+  log('ok',`Bob's “when I receive ${val('bRecv')}” matches, so his script runs.`);
+  await act();
+  if(!on.b){ log('info','Bob has no reply broadcast connected. The call ends here.'); busy=false; return; }
+  const r=val('bMsg');
+  log('send',`Bob broadcasts “${r}”.`);
+  await pulse('ba',r);
+  if(same(r,val('aRecv'))){ log('ok',`Alice's “when I receive ${val('aRecv')}” matches, so her script runs.`); await say('A',val('aSay2')); }
+  else log('warn',`Alice is waiting for “${val('aRecv')}”, not “${r}”, so she does nothing.`);
+  busy=false;
+}
+function reset(){
+  if(busy) return;
+  hue=0; $('faceB').style.filter='none';
+  $('log').innerHTML='<li>Press “Start the call”.</li>';
+}
+function scenario(o){
+  if(busy) return;
+  $('aMsg').value=o.am; $('bRecv').value=o.br; setTog('a',o.a); $('bMsg').value='reply'; $('aRecv').value='reply'; setTog('b',true);
+  reset();
+}
+$('go').onclick=run; $('reset').onclick=reset;
+$('scMatch').onclick=()=>scenario({am:'hello',br:'hello',a:true});
+$('scWrong').onclick=()=>scenario({am:'hello',br:'hi there',a:true});
+$('scNone').onclick=()=>scenario({am:'hello',br:'hello',a:false});
+$('bText').style.display='';
+</script>
+</body>
+</html>
